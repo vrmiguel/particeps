@@ -16,7 +16,7 @@ import (
 
 const (
 	// AnonFiles is the constant for https://anonfiles.com/
-	AnonFiles = iota
+	AnonFiles = iota + 1 // Skip value 0
 	// BayFiles is the constant for https://bayfiles.com/
 	BayFiles = iota
 	// Imgur is the constant for https://imgur.com/
@@ -35,8 +35,7 @@ func CheckFile(filename string) (string, error) {
 	return prettySize(float64(fileInfo.Size())), nil
 }
 
-// AnonFilesUpload attemps to upload a file to AnonFiles and returns a success/failure string
-func AnonFilesUpload(filename string) (UniversalResponse, error) {
+func uploadFile(filename, destURI string) (UniversalResponse, error) {
 	var finalRes UniversalResponse
 
 	// Multi-part Body
@@ -52,15 +51,12 @@ func AnonFilesUpload(filename string) (UniversalResponse, error) {
 	io.Copy(partWriter, fileReader)
 	mw.Close()
 
-	resp, err := http.Post("https://api.anonfiles.com/upload", mw.FormDataContentType(), mpb) // then we send the multipart body with the file to http.Post
+	resp, err := http.Post(destURI, mw.FormDataContentType(), mpb) // then we send the multipart body with the file to http.Post
 	if err != nil {
 		finalRes.Status = false
 		return finalRes, err
 	}
 
-	//var result map[string]interface{}
-
-	// json.NewDecoder(resp.Body).Decode(&result)
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		finalRes.Status = false
@@ -78,6 +74,16 @@ func AnonFilesUpload(filename string) (UniversalResponse, error) {
 	finalRes.FullURL = successResponse.Data.File.URL.Full
 	finalRes.ShortURL = successResponse.Data.File.URL.Short
 	return finalRes, nil
+}
+
+// BayFilesUpload attemps to upload a file to AnonFiles and returns a success/failure string
+func BayFilesUpload(filename string) (UniversalResponse, error) {
+	return uploadFile(filename, "https://api.bayfiles.com/upload")
+}
+
+// AnonFilesUpload attemps to upload a file to AnonFiles and returns a success/failure string
+func AnonFilesUpload(filename string) (UniversalResponse, error) {
+	return uploadFile(filename, "https://api.anonfiles.com/upload")
 }
 
 func round(val float64, roundOn float64, places int) (newVal float64) {

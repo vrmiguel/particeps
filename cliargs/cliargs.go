@@ -32,8 +32,7 @@ import (
 	"../particeps"
 )
 
-const usage = "Usage: ./particeps [-h, --help] [-a, --anonfiles] <path-to-file>\n\n"
-const timefmt = "baleia-log-Jan-02-06-15h04m05s"
+const usage = "Usage: ./particeps [-h, --help] [-a, --anonfiles] [-b, --bayfiles] <path-to-file>"
 
 // CLIArgs stores the passed command-line options
 type CLIArgs struct {
@@ -42,10 +41,11 @@ type CLIArgs struct {
 }
 
 func printHelp() {
-	fmt.Printf(usage)
 	fmt.Printf("%-16s\tShow this help message and exit.\n", "-h, --help")
 	fmt.Printf("%-16s\tUpload the file to anonfiles.com\n", "-a, --anonfiles")
-	fmt.Printf("%-16s\tIndicate the file to be uploaded.\n", "-f, --filename")
+	fmt.Printf("%-16s\tUpload the file to bayfiles.com\n", "-b, --bayfiles")
+	fmt.Printf("%-16s\tIndicates the file to be uploaded.\n", "-f, --filename")
+	fmt.Println(usage)
 }
 
 // ParseCLIArgs reads through the given CLI arg. list and builds a CliArgs
@@ -64,20 +64,21 @@ func ParseCLIArgs(args []string) CLIArgs {
 		} else if arg == "-a" || arg == "--anonfiles" {
 			cfg.Destination = particeps.AnonFiles
 		} else if arg == "-f" || arg == "--filename" {
-			if i+1 >= len(args) {
+			if i+1 >= len(args) || args[i+1] == "" {
 				fmt.Println("error: missing value to -f, --filename")
+				fmt.Println(usage)
 				os.Exit(1)
 			}
 			i++
 			cfg.Filename = args[i]
 		} else {
 			fmt.Printf("error: unknown option %s\n", arg)
-			fmt.Println(usage)
 			os.Exit(1)
 		}
 	}
-	if cfg.Filename == "" {
-		fmt.Fprintf(os.Stderr, "error: filename not supplied")
+	if cfg.Destination == 0 {
+		fmt.Fprintln(os.Stderr, "error: destination not supplied")
+		fmt.Println(usage)
 		os.Exit(1)
 	}
 	return cfg
