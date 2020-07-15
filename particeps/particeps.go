@@ -11,7 +11,9 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -23,6 +25,8 @@ const (
 	Imgur
 	// Filebin is the constant for https://filebin.net/
 	Filebin
+	// Imagebin is the constant for https://imagebin.ca/
+	Imagebin
 )
 
 // CheckFile checks if the filename exists and returns its size in pretty-print form
@@ -35,6 +39,55 @@ func CheckFile(filename string) (string, error) {
 	return prettySize(float64(fileInfo.Size())), nil
 }
 
+// ImagebinUpload uploads an image to imagebin.ca and returns an UniversalResponse with the upload's data
+func ImagebinUpload(filename string) (UniversalResponse, error) {
+	// Multi-part Body
+	var result UniversalResponse
+	result.Status = false
+	mpb := bytes.NewBuffer(nil)
+	mw := multipart.NewWriter(mpb)
+
+	partWriter, err := mw.CreateFormFile("file", filename)
+	if err != nil {
+		return result, err
+	}
+
+	fileReader, err := os.Open(filename)
+	io.Copy(partWriter, fileReader) // TODO: refactor to only call this once when uploading to several providers
+	mw.Close()
+
+	resp, err := http.Post("https://imagebin.ca/upload.php", mw.FormDataContentType(), mpb)
+	if err != nil {
+		return result, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return result, err
+	}
+	var url string
+	if url = getStringAfterWord(string(body), "url:"); url == "" {
+		return result, nil
+	}
+	result.Status = true
+	result.FullURL = url
+	return result, nil
+}
+
+func getStringAfterWord(value string, word string) string {
+	pos := strings.LastIndex(value, word)
+	if pos == -1 {
+		return ""
+	}
+	adjustedPos := pos + len(word)
+	if adjustedPos >= len(value) {
+		return ""
+	}
+	return value[adjustedPos:len(value)]
+}
+
+// Façade function for uploads to Anonfiles and Bayfiles
 func uploadFile(filename, destURI string) (UniversalResponse, error) {
 	var returnValue UniversalResponse
 	returnValue.Status = false
@@ -75,6 +128,32 @@ func uploadFile(filename, destURI string) (UniversalResponse, error) {
 	return returnValue, nil
 }
 
+// // AuthenticateGett reads the user's Gett credentials and saves the account's refresh and access tokens
+// func AuthenticateGett(filename string) error {
+// 	var email string
+// 	fmt.Printf("particeps-auth: please type in your ge.tt's account e-mail: ")
+// 	fmt.Scanf("%s\n", &email)
+// 	fmt.Printf("\nparticeps-auth: please type in your ge.tt's account password: ")
+// 	password, err := terminal.ReadPassword(int(syscall.Stdin))
+// 	if err != nil {
+// 		return err
+// 	}
+// 	bodyStr := `{"apikey":"...","email":"` + email + `","password":"` + string(password) + `"}`
+// 	body := strings.NewReader(bodyStr)
+// 	req, err := http.NewRequest("POST", "https://api.ge.tt/1/users/login", body)
+// 	if err != nil {
+// 		return res
+// 	}
+// 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+// 	resp, err := http.DefaultClient.Do(req)
+// 	if err != nil {
+// 		// handle err
+// 	}
+// 	defer resp.Body.Close()
+
+// }
+
 // FilebinUpload uploads the given file to filebin.net and returns a UniversalResponse with status and URL
 func FilebinUpload(filename string) (UniversalResponse, error) {
 	var returnValue UniversalResponse
@@ -88,7 +167,7 @@ func FilebinUpload(filename string) (UniversalResponse, error) {
 	if err != nil {
 		return returnValue, err
 	}
-	req.Header.Set("Filename", "myfilename")
+	req.Header.Set("Filename", filepath.Base(filename))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -105,7 +184,10 @@ func FilebinUpload(filename string) (UniversalResponse, error) {
 		return returnValue, err
 	}
 
-	returnValue.FullURL = successResponse.Links[1].Href
+	if successResponse.Links[1].Href != "" {
+		returnValue.FullURL = successResponse.Links[1].Href
+		returnValue.Status = true
+	}
 
 	return returnValue, nil
 }
