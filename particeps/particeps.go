@@ -18,11 +18,11 @@ const (
 	// AnonFiles is the constant for https://anonfiles.com/
 	AnonFiles = iota + 1 // Skip value 0
 	// BayFiles is the constant for https://bayfiles.com/
-	BayFiles = iota
+	BayFiles
 	// Imgur is the constant for https://imgur.com/
-	Imgur = iota
+	Imgur
 	// Filebin is the constant for https://filebin.net/
-	Filebin = iota
+	Filebin
 )
 
 // CheckFile checks if the filename exists and returns its size in pretty-print form
@@ -36,7 +36,8 @@ func CheckFile(filename string) (string, error) {
 }
 
 func uploadFile(filename, destURI string) (UniversalResponse, error) {
-	var finalRes UniversalResponse
+	var returnValue UniversalResponse
+	returnValue.Status = false
 
 	// Multi-part Body
 	mpb := bytes.NewBuffer(nil)
@@ -48,32 +49,65 @@ func uploadFile(filename, destURI string) (UniversalResponse, error) {
 	}
 
 	fileReader, err := os.Open(filename)
-	io.Copy(partWriter, fileReader)
+	io.Copy(partWriter, fileReader) // TODO: refactor to only call this once when uploading to several providers
 	mw.Close()
 
 	resp, err := http.Post(destURI, mw.FormDataContentType(), mpb) // then we send the multipart body with the file to http.Post
 	if err != nil {
-		finalRes.Status = false
-		return finalRes, err
+		return returnValue, err
 	}
+	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		finalRes.Status = false
-		return finalRes, err
+		return returnValue, err
 	}
 
 	var successResponse AnonFilesSuccess
 	err = json.Unmarshal(body, &successResponse)
 	if err != nil {
-		finalRes.Status = false
-		return finalRes, err
+		return returnValue, err
 	}
 
-	finalRes.Status = successResponse.Status
-	finalRes.FullURL = successResponse.Data.File.URL.Full
-	finalRes.ShortURL = successResponse.Data.File.URL.Short
-	return finalRes, nil
+	returnValue.Status = successResponse.Status
+	returnValue.FullURL = successResponse.Data.File.URL.Full
+	returnValue.ShortURL = successResponse.Data.File.URL.Short
+	return returnValue, nil
+}
+
+// FilebinUpload uploads the given file to filebin.net and returns a UniversalResponse with status and URL
+func FilebinUpload(filename string) (UniversalResponse, error) {
+	var returnValue UniversalResponse
+	returnValue.Status = false
+	f, err := os.Open(filename)
+	if err != nil {
+		return returnValue, err
+	}
+	defer f.Close()
+	req, err := http.NewRequest("POST", "https://filebin.net", f)
+	if err != nil {
+		return returnValue, err
+	}
+	req.Header.Set("Filename", "myfilename")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return returnValue, err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return returnValue, err
+	}
+	var successResponse FilebinSuccess
+	err = json.Unmarshal(body, &successResponse)
+	if err != nil {
+		return returnValue, err
+	}
+
+	returnValue.FullURL = successResponse.Links[1].Href
+
+	return returnValue, nil
 }
 
 // BayFilesUpload attemps to upload a file to AnonFiles and returns a success/failure string

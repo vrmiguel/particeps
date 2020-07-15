@@ -44,6 +44,7 @@ func printHelp() {
 	fmt.Printf("%-16s\tShow this help message and exit.\n", "-h, --help")
 	fmt.Printf("%-16s\tUpload the file to anonfiles.com\n", "-a, --anonfiles")
 	fmt.Printf("%-16s\tUpload the file to bayfiles.com\n", "-b, --bayfiles")
+	fmt.Printf("%-16s\tUpload the file to filebin.net\n", "-F, --filebin")
 	fmt.Printf("%-16s\tIndicates the file to be uploaded.\n", "-f, --filename")
 	fmt.Println(usage)
 }
@@ -63,6 +64,10 @@ func ParseCLIArgs(args []string) CLIArgs {
 			os.Exit(0)
 		} else if arg == "-a" || arg == "--anonfiles" {
 			cfg.Destination = particeps.AnonFiles
+		} else if arg == "-b" || arg == "--bayfiles" {
+			cfg.Destination = particeps.BayFiles
+		} else if arg == "-F" || arg == "--filebin" {
+			cfg.Destination = particeps.Filebin
 		} else if arg == "-f" || arg == "--filename" {
 			if i+1 >= len(args) || args[i+1] == "" {
 				fmt.Println("error: missing value to -f, --filename")
