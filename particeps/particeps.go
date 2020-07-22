@@ -66,12 +66,11 @@ func ImagebinUpload(filename string) (UniversalResponse, error) {
 	if err != nil {
 		return result, err
 	}
-	var url string
-	if url = getStringAfterWord(string(body), "url:"); url == "" {
+
+	if result.FullURL = getStringAfterWord(string(body), "url:"); result.FullURL == "" {
 		return result, nil
 	}
 	result.Status = true
-	result.FullURL = url
 	return result, nil
 }
 
@@ -217,7 +216,7 @@ func round(val float64, roundOn float64, places int) (newVal float64) {
 }
 
 func prettySize(sizeInBytes float64) string {
-	suffixes := [5]string{"B", "KB", "MB", "GB"}
+	suffixes := [4]string{"B", "KB", "MB", "GB"}
 	base := math.Log(sizeInBytes) / math.Log(1024)
 	size := round(math.Pow(1024, base-math.Floor(base)), .5, 2)
 	suffix := suffixes[int(math.Floor(base))]
