@@ -5,8 +5,9 @@ import (
 	"log"
 	"os"
 
-	"./cliargs"
-	"./particeps"
+	"github.com/vrmiguel/particeps/cliargs"
+
+	"github.com/vrmiguel/particeps/particeps"
 )
 
 func assertNonNil(err error) {

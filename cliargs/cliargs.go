@@ -29,7 +29,7 @@ import (
 	"fmt"
 	"os"
 
-	"../particeps"
+	"github.com/vrmiguel/particeps/particeps"
 )
 
 const usage = "Usage: ./particeps [-h, --help] [-a, --anonfiles] [-F, --filebin] [-b, --bayfiles] -f, --filename path-to-file"
